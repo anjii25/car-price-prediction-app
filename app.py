@@ -18,7 +18,7 @@ df = load_data()
 
 # Sidebar navigation
 st.sidebar.title("Car Price Prediction")
-st.sidebar.markdown("By [Your Names]")
+st.sidebar.markdown("By Anji and Jessie")
 page = st.sidebar.selectbox("Navigate to", [
     "Introduction",
     "Data Visualization", 
