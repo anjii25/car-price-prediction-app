@@ -396,7 +396,7 @@ elif page == "Hyperparameter Tuning":
                 "r2": r2
             })
             wandb.finish()
-            st.info("Experiment logged to Weight & Biases!")
+            st.info("Experiment logged to experiment history!")
         except Exception as e:
             st.warning(f"W&B logging failed: {e}")
     else:
