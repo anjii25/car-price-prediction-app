@@ -12,7 +12,10 @@ import shap
 import os
 import wandb
 
-wandb.login(key="c26a52a0d00aa7f429f53621997611857dff975d")
+wandb.login(key="916eb733271a059e07018432656f6fb084c889b6")
+if "experiment_history" not in st.session_state:
+    st.session_state.experiment_history = []
+
 
 # Page configuration
 st.set_page_config(
@@ -21,7 +24,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Load data
+# Load dat
 @st.cache_data
 def load_data():
     return pd.read_csv("car_price_prediction_.csv")
@@ -206,17 +209,31 @@ elif page == "Price Prediction":
         st.metric("R²", f"{r2:.3f}")
 
     # Simple plot
-    st.subheader("Actual vs Predicted Prices")
     fig, ax = plt.subplots(figsize=(10, 6))
+
     ax.scatter(y_test, y_pred, alpha=0.6)
-    ax.plot([y_test.min(), y_test.max()], [y_test.min(), y_test.max()], 'r--')
+
+    # Diagonal perfect-prediction line
+    ax.plot(
+        [y_test.min(), y_test.max()],
+        [y_test.min(), y_test.max()],
+        'r--'
+    )
+
+    ax.set_ylim(48000.00, 56000.00)
+
     ax.set_xlabel("Actual Price ($)")
     ax.set_ylabel("Predicted Price ($)")
+
     st.pyplot(fig)
+
+    
+
+    
 
 # ========== FEATURE IMPORTANCE PAGE ==========
 elif page == "Feature Importance":
-    st.title("🔍 Feature Importance & Model Explainability")
+    st.title("Feature Importance & Model Explainability")
     
     # Prepare data
     df_pred = df.copy()
@@ -345,7 +362,17 @@ elif page == "Hyperparameter Tuning":
         mse = mean_squared_error(y_test, y_pred)
         mae = mean_absolute_error(y_test, y_pred)
         r2 = r2_score(y_test, y_pred)
-        
+        # save experiment locally in the streamlit
+        st.session_state.experiment_history.append({
+            "model": model_type,
+            "n_estimators": n_estimators,
+            "max_depth": max_depth,
+            "test_size": test_size,
+            "mse": mse,
+            "mae": mae,
+            "r2": r2
+        })
+
         # Display results
         st.success("Experiment Completed!")
         
@@ -373,17 +400,16 @@ elif page == "Hyperparameter Tuning":
         except Exception as e:
             st.warning(f"W&B logging failed: {e}")
     else:
-        st.info("Enable W&B: Add your API key to Streamlit secrets for experiment tracking")
+        st.info("Run a model!")
     
     # Experiment history
     st.subheader("Experiment History")
-    st.info("""
-    With W&B enabled, you would see:
-    - Comparison of different hyperparameter combinations
-    - Performance metrics across experiments
-    - Best performing model identification
-    - Interactive charts and dashboards
-    """)
+
+    if len(st.session_state.experiment_history) == 0:
+        st.info("No experiments run yet.")
+    else:
+        st.dataframe(st.session_state.experiment_history)
+
 
 # ========== CONCLUSION PAGE ==========
 elif page == "Conclusion":
