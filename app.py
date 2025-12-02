@@ -12,7 +12,7 @@ import shap
 import os
 import wandb
 
-wandb.login(key="")
+wandb.login(key="916eb733271a059e07018432656f6fb084c889b6")
 if "experiment_history" not in st.session_state:
     st.session_state.experiment_history = []
 
@@ -42,26 +42,30 @@ page = st.sidebar.selectbox("Navigate to", [
     "Hyperparameter Tuning",
     "Conclusion"
 ])
+st.sidebar.image("assets/vroooommmmmm.jpg")
 
 # ========== INTRODUCTION PAGE ==========
 if page == "Introduction":
     st.title("Car Price Prediction App")
-    
-    st.markdown("""
-    ## Business Problem: Solving Used Car Market Inefficiencies
-    
-    The $1.2 trillion global used car market suffers from:
-    
-    - **Pricing Inconsistency**: Identical cars vary by 20-30% in price
-    - **Information Asymmetry**: Sellers have more information than buyers
-    - **Market Volatility**: Prices change rapidly based on supply/demand
-    - **Regional Variations**: Same car, different prices across regions
-    
-    **Our ML Solution**: A transparent, data-driven pricing tool that:
-    - Predicts fair market value using 8 key features
-    - Explains what factors drive prices up/down
-    - Helps both buyers and sellers make informed decisions
-    """)
+    col1, col2 = st.columns([2, 1])  # Adjust ratio if needed
+    with col1:
+        st.markdown("""
+        ## Business Problem: Solving Used Car Market Inefficiencies
+        
+        The $1.2 trillion global used car market suffers from:
+        
+        - **Pricing Inconsistency**: Identical cars vary by 20-30% in price
+        - **Information Asymmetry**: Sellers have more information than buyers
+        - **Market Volatility**: Prices change rapidly based on supply/demand
+        - **Regional Variations**: Same car, different prices across regions
+        
+        **Our ML Solution**: A transparent, data-driven pricing tool that:
+        - Predicts fair market value using 8 key features
+        - Explains what factors drive prices up/down
+        - Helps both buyers and sellers make informed decisions
+        """)
+    with col2:
+        st.image("assets/kachow.avif")
     
     st.subheader("Dataset Overview")
     st.dataframe(df.head(10))
@@ -175,7 +179,7 @@ elif page == "Data Visualization":
 
 # ========== PRICE PREDICTION PAGE ==========
 elif page == "Price Prediction":
-    st.header("03 • Prediction Modeling")
+    st.header("Prediction Modeling")
     
     # Use ONLY numeric features (like your wine app)
     X = df[['Year', 'Engine Size', 'Mileage']]
@@ -290,19 +294,11 @@ elif page == "Feature Importance":
     
     example_idx = st.slider("Select example to explain", 0, len(X_sample)-1, 0)
     
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.markdown("#### Waterfall Plot")
-        fig, ax = plt.subplots(figsize=(10, 6))
-        shap.plots.waterfall(shap_values[example_idx], show=False)
-        st.pyplot(fig)
-    
-    with col2:
-        st.markdown("#### Force Plot")
-        fig, ax = plt.subplots(figsize=(10, 6))
-        shap.plots.force(shap_values[example_idx], matplotlib=True, show=False)
-        st.pyplot(fig)
+    st.markdown("#### Waterfall Plot")
+    fig, ax = plt.subplots(figsize=(10, 6))
+    shap.plots.waterfall(shap_values[example_idx], show=False)
+    st.pyplot(fig)
+
 
 # ========== HYPERPARAMETER TUNING PAGE ==========
 elif page == "Hyperparameter Tuning":
