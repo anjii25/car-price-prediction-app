@@ -317,95 +317,154 @@ elif page == "Hyperparameter Tuning":
     col1, col2 = st.columns(2)
     
     with col1:
-        model_type = st.selectbox("Model Type", ["Random Forest", "Linear Regression"])
+        model_type = st.selectbox("Model Type", ["Random Forest", "Linear Regression", "Gradient Boosting"])
         n_estimators = st.slider("Number of Estimators", 50, 200, 100)
     
     with col2:
         max_depth = st.slider("Max Depth", 5, 50, 20)
-        test_size = st.slider("Test Size", 0.1, 0.4, 0.2)
+        test_size = st.slider("Test Size", 0.1, 0.4, 0.3)
     
     if st.button("Run Experiment"):
-        # Prepare data
-        df_pred = df.copy()
-        categorical_cols = ['Brand', 'Fuel Type', 'Transmission', 'Condition', 'Model']
+        # SPLIT FIRST - CRITICAL!
+        from sklearn.preprocessing import StandardScaler, OneHotEncoder
+        from sklearn.compose import ColumnTransformer
+        from sklearn.pipeline import Pipeline
         
-        for col in categorical_cols:
-            le = LabelEncoder()
-            df_pred[f'{col}_encoded'] = le.fit_transform(df_pred[col])
+        # Define features and target
+        X = df.drop(['Price', 'Car ID'], axis=1)  # Drop ID column
+        y = df['Price']
         
-        feature_cols = ['Year', 'Engine Size', 'Mileage'] + [f'{col}_encoded' for col in categorical_cols]
-        X = df_pred[feature_cols]
-        y = df_pred['Price']
-        
+        # Split first
         X_train, X_test, y_train, y_test = train_test_split(
             X, y, test_size=test_size, random_state=42
         )
         
-        # Train model
+        # Define preprocessing
+        numeric_features = ['Year', 'Engine Size', 'Mileage']
+        categorical_features = ['Brand', 'Fuel Type', 'Transmission', 'Condition', 'Model']
+        
+        # Create preprocessing pipeline
+        preprocessor = ColumnTransformer(
+            transformers=[
+                ('num', StandardScaler(), numeric_features),
+                ('cat', OneHotEncoder(handle_unknown='ignore'), categorical_features)
+            ])
+        
+        # Create model based on selection
         if model_type == "Random Forest":
+            from sklearn.ensemble import RandomForestRegressor
             model = RandomForestRegressor(
+                n_estimators=n_estimators,
+                max_depth=max_depth,
+                random_state=42,
+                n_jobs=-1
+            )
+        elif model_type == "Linear Regression":
+            from sklearn.linear_model import LinearRegression
+            model = LinearRegression()
+        else:  # Gradient Boosting
+            from sklearn.ensemble import GradientBoostingRegressor
+            model = GradientBoostingRegressor(
                 n_estimators=n_estimators,
                 max_depth=max_depth,
                 random_state=42
             )
-        else:
-            model = LinearRegression()
         
-        model.fit(X_train, y_train)
-        y_pred = model.predict(X_test)
+        # Create pipeline
+        pipeline = Pipeline(steps=[
+            ('preprocessor', preprocessor),
+            ('regressor', model)
+        ])
+        
+        # Train and predict
+        pipeline.fit(X_train, y_train)
+        y_pred = pipeline.predict(X_test)
         
         # Calculate metrics
         mse = mean_squared_error(y_test, y_pred)
         mae = mean_absolute_error(y_test, y_pred)
         r2 = r2_score(y_test, y_pred)
-        # save experiment locally in the streamlit
+        
+        # Display feature importance for tree-based models
+        if model_type != "Linear Regression":
+            try:
+                # Get feature names after one-hot encoding
+                feature_names = numeric_features.copy()
+                ohe = preprocessor.named_transformers_['cat']
+                if hasattr(ohe, 'get_feature_names_out'):
+                    cat_features = ohe.get_feature_names_out(categorical_features)
+                    feature_names.extend(cat_features)
+                
+                # Get feature importance
+                importances = model.feature_importances_
+                importance_df = pd.DataFrame({
+                    'Feature': feature_names[:len(importances)],
+                    'Importance': importances
+                }).sort_values('Importance', ascending=False).head(10)
+                
+                st.subheader("Top 10 Feature Importances")
+                st.dataframe(importance_df)
+            except:
+                pass
+        
+        # Save experiment locally
         st.session_state.experiment_history.append({
             "model": model_type,
             "n_estimators": n_estimators,
             "max_depth": max_depth,
             "test_size": test_size,
-            "mse": mse,
-            "mae": mae,
-            "r2": r2
+            "mse": round(mse, 2),
+            "mae": round(mae, 2),
+            "r2": round(r2, 4)
         })
 
         # Display results
         st.success("Experiment Completed!")
         
         col1, col2, col3 = st.columns(3)
-        with col1: st.metric("MSE", f"${mse:,.0f}")
-        with col2: st.metric("MAE", f"${mae:,.0f}")
-        with col3: st.metric("R²", f"{r2:.3f}")
+        with col1: 
+            st.metric("MSE", f"${mse:,.0f}")
+            st.write(f"RMSE: ${np.sqrt(mse):,.0f}")
+        with col2: 
+            st.metric("MAE", f"${mae:,.0f}")
+            st.write(f"MAPE: {np.mean(np.abs((y_test - y_pred) / y_test)) * 100:.1f}%")
+        with col3: 
+            st.metric("R²", f"{r2:.4f}")
+            st.write(f"Baseline R²: 0.0")
         
-        # W&B integration (optional)
-        try:
-            wandb.init(project="car-price-prediction", reinit=True)
-            wandb.config.update({
-                "model_type": model_type,
-                "n_estimators": n_estimators,
-                "max_depth": max_depth,
-                "test_size": test_size
-            })
-            wandb.log({
-                "mse": mse,
-                "mae": mae,
-                "r2": r2
-            })
-            wandb.finish()
-            st.info("Experiment logged to experiment history!")
-        except Exception as e:
-            st.warning(f"W&B logging failed: {e}")
-    else:
-        st.info("Run a model!")
-    
-    # Experiment history
-    st.subheader("Experiment History")
-
-    if len(st.session_state.experiment_history) == 0:
-        st.info("No experiments run yet.")
-    else:
-        st.dataframe(st.session_state.experiment_history)
-
+        # Visualization
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
+        
+        # Actual vs Predicted
+        ax1.scatter(y_test, y_pred, alpha=0.5)
+        ax1.plot([y_test.min(), y_test.max()], [y_test.min(), y_test.max()], 'r--', lw=2)
+        ax1.set_xlabel("Actual Price ($)")
+        ax1.set_ylabel("Predicted Price ($)")
+        ax1.set_title("Actual vs Predicted")
+        
+        # Residuals
+        residuals = y_test - y_pred
+        ax2.scatter(y_pred, residuals, alpha=0.5)
+        ax2.axhline(y=0, color='r', linestyle='--')
+        ax2.set_xlabel("Predicted Price ($)")
+        ax2.set_ylabel("Residuals ($)")
+        ax2.set_title("Residual Plot")
+        
+        plt.tight_layout()
+        st.pyplot(fig)
+        
+        # Display actual vs predicted table
+        st.subheader("Sample Predictions")
+        results_df = pd.DataFrame({
+            'Actual': y_test.values[:10],
+            'Predicted': y_pred[:10],
+            'Error': (y_test.values[:10] - y_pred[:10])
+        })
+        st.dataframe(results_df.style.format({
+            'Actual': '${:,.0f}',
+            'Predicted': '${:,.0f}',
+            'Error': '${:,.0f}'
+        }))
 
 # ========== CONCLUSION PAGE ==========
 elif page == "Conclusion":
