@@ -183,25 +183,19 @@ elif page == "Price Prediction":
     
     st.markdown("""
     ### Brand-Specific Modeling
-    Different car brands have different pricing patterns. 
-    By training separate models for each brand, we get more accurate predictions.
+    Training separate models for each brand for more accurate predictions.
     """)
     
     # Step 1: Filter brands with sufficient data (at least 30 cars)
     brand_counts = df['Brand'].value_counts()
     valid_brands = brand_counts[brand_counts >= 30].index.tolist()
     
-    st.write(f"**{len(valid_brands)} brands** have enough data (≥30 cars each):")
-    st.write(", ".join(valid_brands))
-    
-    # Step 2: Let user select brand
     selected_brand = st.selectbox(
-        "Select a car brand to predict prices for:",
-        valid_brands,
-        index=0  # Default to first brand
+        "Select a car brand:",
+        valid_brands
     )
     
-    # Step 3: Filter data for selected brand
+    # Step 2: Filter data for selected brand
     df_brand = df[df['Brand'] == selected_brand].copy()
     
     # Show brand statistics
@@ -213,37 +207,29 @@ elif page == "Price Prediction":
     with col3:
         st.metric("Price Range", f"${df_brand['Price'].min():,.0f}-${df_brand['Price'].max():,.0f}")
     
-    # Step 4: Prepare features for this specific brand
-    # Use only relevant features - simpler model for cleaner data
+    # Step 3: Prepare features
     X = df_brand[['Year', 'Engine Size', 'Mileage']]
     y = df_brand['Price']
     
-    # Check if we have enough data after filtering
     if len(df_brand) < 30:
         st.error(f"Not enough data for {selected_brand}. Only {len(df_brand)} cars found.")
     else:
-        st.write(f"**Training model for {selected_brand} cars**")
-        st.write(f"Using {len(df_brand)} cars with 3 features: Year, Engine Size, Mileage")
-        
-        # Step 5: Train/test split
+        # Step 4: Train/test split
         test_size = st.slider(
             "Test size (%)", 
             min_value=10, 
             max_value=40, 
             value=20, 
-            step=5,
-            help="Percentage of data to use for testing"
+            step=5
         )
         
         X_train, X_test, y_train, y_test = train_test_split(
             X, y, test_size=test_size/100, random_state=42
         )
         
-        # Step 6: Train linear regression model
+        # Step 5: Train model
         model = LinearRegression()
         model.fit(X_train, y_train)
-        
-        # Predictions
         y_pred = model.predict(X_test)
         
         # Calculate metrics
@@ -251,101 +237,78 @@ elif page == "Price Prediction":
         mae = mean_absolute_error(y_test, y_pred)
         r2 = r2_score(y_test, y_pred)
         
-        # Step 7: Display results
+        # Step 6: Display results
         st.subheader(f"{selected_brand} Model Performance")
         
         col1, col2, col3 = st.columns(3)
         with col1:
             st.metric("MSE", f"${mse:,.0f}")
-            st.write(f"RMSE: ${np.sqrt(mse):,.0f}")
         with col2:
             st.metric("MAE", f"${mae:,.0f}")
-            mape = np.mean(np.abs((y_test - y_pred) / y_test)) * 100
-            st.write(f"MAPE: {mape:.1f}%")
         with col3:
             st.metric("R²", f"{r2:.3f}")
-            if r2 > 0.5:
-                st.success("Good fit!")
-            elif r2 > 0.3:
-                st.info("Moderate fit")
-            else:
-                st.warning("Poor fit - consider adding more features")
         
-        # Step 8: Show model coefficients
-        st.subheader("Model Coefficients")
+        # Step 7: Show model coefficients
+        st.subheader("Feature Impacts on Price")
         coef_df = pd.DataFrame({
             'Feature': X.columns,
-            'Coefficient': model.coef_,
-            'Impact': ['+' if c > 0 else '-' for c in model.coef_]
+            'Impact per unit': [f"${c:,.2f}" for c in model.coef_],
+            'Direction': ['Increases price' if c > 0 else 'Decreases price' for c in model.coef_]
         })
         st.dataframe(coef_df)
         
-        st.write("**Interpretation:**")
-        for i, (feature, coef) in enumerate(zip(X.columns, model.coef_)):
-            direction = "increases" if coef > 0 else "decreases"
-            st.write(f"- **{feature}**: Each unit {direction} price by ${abs(coef):,.2f}")
+        # Step 8: Visualizations - SIMPLIFIED to 2 graphs
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 6))
         
-        # Step 9: Visualizations
-        fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(14, 10))
+        # Graph 1: Actual vs Predicted with PROPERLY SCALED line
+        ax1.scatter(y_test, y_pred, alpha=0.6, s=50, color='steelblue')
         
-        # 1. Actual vs Predicted
-        ax1.scatter(y_test, y_pred, alpha=0.6, color='blue')
-        ax1.plot([y_test.min(), y_test.max()], 
-                [y_test.min(), y_test.max()], 
-                'r--', lw=2, label='Perfect Prediction')
-        ax1.set_xlabel("Actual Price ($)")
-        ax1.set_ylabel("Predicted Price ($)")
-        ax1.set_title(f"{selected_brand}: Actual vs Predicted Prices")
+        # Get min and max for scaling
+        all_values = np.concatenate([y_test, y_pred])
+        min_val = all_values.min() * 0.95
+        max_val = all_values.max() * 1.05
+        
+        # Perfect prediction line (45-degree line from corner to corner)
+        ax1.plot([min_val, max_val], [min_val, max_val], 
+                'r--', lw=2.5, label='Perfect Prediction')
+        
+        ax1.set_xlabel("Actual Price ($)", fontsize=12)
+        ax1.set_ylabel("Predicted Price ($)", fontsize=12)
+        ax1.set_title(f"{selected_brand}: Actual vs Predicted", fontsize=14, fontweight='bold')
         ax1.legend()
         ax1.grid(True, alpha=0.3)
         
-        # 2. Residual plot
-        residuals = y_test - y_pred
-        ax2.scatter(y_pred, residuals, alpha=0.6, color='green')
-        ax2.axhline(y=0, color='r', linestyle='--', lw=2)
-        ax2.set_xlabel("Predicted Price ($)")
-        ax2.set_ylabel("Residuals ($)")
-        ax2.set_title("Residual Plot")
+        # Set equal scale on both axes
+        ax1.set_xlim([min_val, max_val])
+        ax1.set_ylim([min_val, max_val])
+        
+        # Graph 2: Feature vs Price (most important feature)
+        most_important_idx = np.argmax(np.abs(model.coef_))
+        most_important_feature = X.columns[most_important_idx]
+        
+        ax2.scatter(df_brand[most_important_feature], df_brand['Price'], 
+                   alpha=0.6, s=50, color='coral')
+        ax2.set_xlabel(most_important_feature, fontsize=12)
+        ax2.set_ylabel("Price ($)", fontsize=12)
+        ax2.set_title(f"Price vs {most_important_feature}", fontsize=14, fontweight='bold')
         ax2.grid(True, alpha=0.3)
-        
-        # 3. Feature vs Price
-        feature_for_plot = st.selectbox(
-            "Select feature to visualize relationship with price:",
-            X.columns,
-            key='feature_plot'
-        )
-        
-        ax3.scatter(df_brand[feature_for_plot], df_brand['Price'], 
-                   alpha=0.6, color='purple')
-        ax3.set_xlabel(feature_for_plot)
-        ax3.set_ylabel("Price ($)")
-        ax3.set_title(f"{feature_for_plot} vs Price")
-        ax3.grid(True, alpha=0.3)
-        
-        # 4. Prediction error distribution
-        ax4.hist(residuals, bins=30, color='orange', edgecolor='black', alpha=0.7)
-        ax4.axvline(x=0, color='r', linestyle='--', lw=2)
-        ax4.set_xlabel("Prediction Error ($)")
-        ax4.set_ylabel("Frequency")
-        ax4.set_title("Error Distribution")
-        ax4.grid(True, alpha=0.3)
         
         plt.tight_layout()
         st.pyplot(fig)
         
-        # Step 10: Interactive prediction tool
-        st.subheader("🔮 Predict Price for a Specific Car")
+        # Step 9: Simple prediction tool
+        st.subheader("Try It Yourself: Predict a Price")
         
         col1, col2, col3 = st.columns(3)
         with col1:
-            input_year = st.slider(
+            input_year = st.number_input(
                 "Year", 
                 min_value=int(df_brand['Year'].min()), 
                 max_value=int(df_brand['Year'].max()),
                 value=int(df_brand['Year'].median())
             )
         with col2:
-            input_engine = st.slider(
+            input_engine = st.number_input(
                 "Engine Size (L)", 
                 min_value=float(df_brand['Engine Size'].min()),
                 max_value=float(df_brand['Engine Size'].max()),
@@ -353,15 +316,13 @@ elif page == "Price Prediction":
                 step=0.1
             )
         with col3:
-            input_mileage = st.slider(
+            input_mileage = st.number_input(
                 "Mileage", 
                 min_value=int(df_brand['Mileage'].min()),
                 max_value=int(df_brand['Mileage'].max()),
-                value=int(df_brand['Mileage'].median()),
-                step=1000
+                value=int(df_brand['Mileage'].median())
             )
         
-        # Make prediction
         if st.button("Predict Price", type="primary"):
             input_data = pd.DataFrame({
                 'Year': [input_year],
@@ -371,62 +332,15 @@ elif page == "Price Prediction":
             
             predicted_price = model.predict(input_data)[0]
             
-            # Show prediction with confidence interval
             st.success(f"### Predicted Price: **${predicted_price:,.2f}**")
             
-            # Add context
+            # Show comparison
             st.info(f"""
-            **Comparison for {selected_brand}:**
-            - Predicted: ${predicted_price:,.0f}
+            **Comparison:**
+            - Your predicted price: ${predicted_price:,.0f}
             - Average {selected_brand} price: ${df_brand['Price'].mean():,.0f}
-            - Range: ${df_brand['Price'].min():,.0f} - ${df_brand['Price'].max():,.0f}
+            - This is {"above" if predicted_price > df_brand['Price'].mean() else "below"} average
             """)
-        
-        # Step 11: Show all brand comparisons
-        st.subheader("📊 Compare Brands")
-        
-        if st.checkbox("Show performance across all brands"):
-            brand_results = []
-            
-            for brand in valid_brands[:10]:  # Limit to first 10 for speed
-                df_brand_temp = df[df['Brand'] == brand]
-                if len(df_brand_temp) >= 30:
-                    X_temp = df_brand_temp[['Year', 'Engine Size', 'Mileage']]
-                    y_temp = df_brand_temp['Price']
-                    
-                    # Split
-                    X_train_temp, X_test_temp, y_train_temp, y_test_temp = train_test_split(
-                        X_temp, y_temp, test_size=0.2, random_state=42
-                    )
-                    
-                    # Train
-                    model_temp = LinearRegression()
-                    model_temp.fit(X_train_temp, y_train_temp)
-                    
-                    # Predict
-                    y_pred_temp = model_temp.predict(X_test_temp)
-                    
-                    # Metrics
-                    r2_temp = r2_score(y_test_temp, y_pred_temp)
-                    mae_temp = mean_absolute_error(y_test_temp, y_pred_temp)
-                    
-                    brand_results.append({
-                        'Brand': brand,
-                        'Cars': len(df_brand_temp),
-                        'Avg Price': df_brand_temp['Price'].mean(),
-                        'R²': r2_temp,
-                        'MAE': mae_temp
-                    })
-            
-            # Display comparison
-            results_df = pd.DataFrame(brand_results)
-            results_df = results_df.sort_values('R²', ascending=False)
-            
-            st.dataframe(results_df.style.format({
-                'Avg Price': '${:,.0f}',
-                'MAE': '${:,.0f}',
-                'R²': '{:.3f}'
-            }).background_gradient(subset=['R²'], cmap='RdYlGn'))
 
 # ========== FEATURE IMPORTANCE PAGE ==========
 elif page == "Feature Importance":
