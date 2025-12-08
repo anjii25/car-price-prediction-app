@@ -186,7 +186,6 @@ elif page == "Price Prediction":
     Training separate models for each brand for more accurate predictions.
     """)
     
-    # Step 1: Filter brands with sufficient data (at least 30 cars)
     brand_counts = df['Brand'].value_counts()
     valid_brands = brand_counts[brand_counts >= 30].index.tolist()
     
@@ -195,10 +194,9 @@ elif page == "Price Prediction":
         valid_brands
     )
     
-    # Step 2: Filter data for selected brand
+
     df_brand = df[df['Brand'] == selected_brand].copy()
     
-    # Show brand statistics
     col1, col2, col3 = st.columns(3)
     with col1:
         st.metric(f"{selected_brand} Cars", len(df_brand))
@@ -207,7 +205,6 @@ elif page == "Price Prediction":
     with col3:
         st.metric("Price Range", f"${df_brand['Price'].min():,.0f}-${df_brand['Price'].max():,.0f}")
     
-    # Step 3: Prepare features
     X = df_brand[['Year', 'Engine Size', 'Mileage']]
     y = df_brand['Price']
     
@@ -227,17 +224,14 @@ elif page == "Price Prediction":
             X, y, test_size=test_size/100, random_state=42
         )
         
-        # Step 5: Train model
         model = LinearRegression()
         model.fit(X_train, y_train)
         y_pred = model.predict(X_test)
         
-        # Calculate metrics
         mse = mean_squared_error(y_test, y_pred)
         mae = mean_absolute_error(y_test, y_pred)
         r2 = r2_score(y_test, y_pred)
         
-        # Step 6: Display results
         st.subheader(f"{selected_brand} Model Performance")
         
         col1, col2, col3 = st.columns(3)
@@ -248,7 +242,6 @@ elif page == "Price Prediction":
         with col3:
             st.metric("R²", f"{r2:.3f}")
         
-        # Step 7: Show model coefficients
         st.subheader("Feature Impacts on Price")
         coef_df = pd.DataFrame({
             'Feature': X.columns,
@@ -257,18 +250,14 @@ elif page == "Price Prediction":
         })
         st.dataframe(coef_df)
         
-        # Step 8: Visualizations - SIMPLIFIED to 2 graphs
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 6))
         
-        # Graph 1: Actual vs Predicted with PROPERLY SCALED line
         ax1.scatter(y_test, y_pred, alpha=0.6, s=50, color='steelblue')
         
-        # Get min and max for scaling
         all_values = np.concatenate([y_test, y_pred])
         min_val = all_values.min() * 0.95
         max_val = all_values.max() * 1.05
         
-        # Perfect prediction line (45-degree line from corner to corner)
         ax1.plot([min_val, max_val], [min_val, max_val], 
                 'r--', lw=2.5, label='Perfect Prediction')
         
@@ -278,11 +267,9 @@ elif page == "Price Prediction":
         ax1.legend()
         ax1.grid(True, alpha=0.3)
         
-        # Set equal scale on both axes
         ax1.set_xlim([min_val, max_val])
         ax1.set_ylim([min_val, max_val])
         
-        # Graph 2: Feature vs Price (most important feature)
         most_important_idx = np.argmax(np.abs(model.coef_))
         most_important_feature = X.columns[most_important_idx]
         
@@ -295,8 +282,7 @@ elif page == "Price Prediction":
         
         plt.tight_layout()
         st.pyplot(fig)
-        
-        # Step 9: Simple prediction tool
+
         st.subheader("Try It Yourself: Predict a Price")
         
         col1, col2, col3 = st.columns(3)
@@ -334,7 +320,6 @@ elif page == "Price Prediction":
             
             st.success(f"### Predicted Price: **${predicted_price:,.2f}**")
             
-            # Show comparison
             st.info(f"""
             **Comparison:**
             - Your predicted price: ${predicted_price:,.0f}
