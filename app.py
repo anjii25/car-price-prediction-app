@@ -560,58 +560,99 @@ elif page == "Hyperparameter Tuning":
 
 # ========== CONCLUSION PAGE ==========
 elif page == "Conclusion":
-    st.title("Project Conclusion & Business Impact")
+    st.title("Project Conclusion & Limitations")
     
+    # Executive Summary
     st.markdown("""
-    ## Successfully Solved Business Problems
+    ## Summary of Findings
     
-    Our Car Price Prediction App addresses critical challenges in the automotive market:
+    This project demonstrates a machine learning pipeline for car price prediction, but faces significant limitations due to data quality issues.
     """)
     
+    # Key Findings
     col1, col2 = st.columns(2)
     
     with col1:
         st.markdown("""
-        ### For Car Buyers
-        - **Avoid overpaying** by 15-25%
-        - **Understand fair value** with data-backed insights
-        - **Negotiate confidently** with transparent pricing
-        
-        ### For Car Sellers  
-        - **Price competitively** while maximizing profit
-        - **Highlight value drivers** to justify asking price
-        - **Understand market trends** and demand patterns
+        **Technical Achievements:**
+        - Built complete ML pipeline with multiple models
+        - Created interactive visualization dashboard
+        - Implemented hyperparameter tuning system
+        - Added model explainability with SHAP
         """)
     
     with col2:
         st.markdown("""
-        ### For Dealerships
-        - **Optimize inventory pricing** strategies
-        - **Identify undervalued** trade-in opportunities
-        - **Make data-driven** acquisition decisions
-        - **Reduce pricing errors** by 80%
+        **Critical Limitations:**
+        - Dataset contains synthetic, unrealistic data
+        - Model shows high error rates (~47%)
+        - Some brands have negative R² values
+        - Not suitable for production use
         """)
     
+    # Data Quality Issues
     st.markdown("""
-    ## Key Technical Achievements
+    ## Data Quality Problems
     
-    ### Model Performance
-    - **R² Score**: 0.85+ (explains 85% of price variance)
-    - **Prediction Error**: Within $2,000-3,000 of actual prices
-    - **Top Features**: Year, Brand, Mileage, Condition
+    The dataset has several issues that limit model reliability:
     
-    ### Business Impact Metrics
-    - **Pricing Accuracy**: Improved by 40% vs traditional methods
-    - **Decision Confidence**: Increased by 60% for users
-    - **Market Transparency**: Significant improvement
+    1. **Unrealistic Prices**: Cars from 2000-2005 priced at $90,000+
+    2. **Contradictory Features**: Teslas listed with petrol/diesel engines
+    3. **Impossible Conditions**: 20+ year old cars marked "New"
+    4. **Wrong Models**: Tesla Model 3 listed in 2001 (didn't exist yet)
+    5. **Computer-Generated**: All data appears synthetic, not real transactions
     """)
     
-    st.success("""
-    **Project Success**: This app demonstrates how machine learning can bring 
-    transparency and efficiency to the $1.2 trillion global used car market, 
-    helping consumers make better financial decisions while supporting fair 
-    market practices.
+    # Model Performance
+    st.markdown("""
+    ## Model Performance
+    
+    **Key Metrics:**
+    - R² Score: 0.68 (explains 68% of price variance)
+    - Average Error: ±$28,147 per prediction
+    - Error Rate: 47% relative to average car price
+    - Brand Performance: Varies widely, some negative R²
+    
+    **Interpretation:**
+    The model performs worse than simply using average prices for some brands.
+    Error rates are too high for financial decision-making.
     """)
+    
+    # Business Implications
+    st.markdown("""
+    ## Business Implications
+    
+    **What This Can Do:**
+    - Demonstrate ML methodology and workflow
+    - Provide rough directional price guidance
+    - Serve as educational/training example
+    
+    **What This Cannot Do:**
+    - Predict actual transaction prices
+    - Replace professional appraisals
+    - Be used for financial decisions
+    - Account for real market conditions
+    
+    # Recommendations
+    st.markdown("""
+    ## Recommendations
+    
+    1. **Fix Data First**: Source real transaction data before further development
+    2. **Validate Features**: Remove impossible feature combinations
+    3. **Segment Models**: Build separate models for different vehicle types
+    4. **Add Real Features**: Include accident history, maintenance records, location data
+    5. **Industry Partnerships**: Work with automotive data providers for authentic data
+    
+    **Minimum Production Requirements:**
+    - Real transaction data with verified VINs
+    - Accuracy: ±10% error rate maximum
+    - Coverage: 90%+ of mainstream vehicles
+    - Speed: Sub-second predictions
+    """)
+    
+    **Project Status:** Educational demonstration only
+    """)
+```
 
 # Run the app
 if __name__ == "__main__":
